@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>تماس مستقیم</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  :root{
+    --bg: #0a0e12;
+    --bg-panel: #10161c;
+    --bg-panel-2: #151d24;
+    --line: #202a32;
+    --text: #e8edf1;
+    --text-dim: #7c8a96;
+    --signal: #45e0b0;
+    --signal-dim: #1f4a3d;
+    --host: #ffb454;
+    --danger: #ff6b6b;
+    --radius: 14px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Vazirmatn', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .mono{ font-family:'JetBrains Mono', monospace; direction: ltr; }
+
+  /* ---------- top bar / signature link ---------- */
+  .topbar{
+    padding: 22px 20px 14px;
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+  }
+  .brand h1{
+    font-size: 17px; font-weight:700; margin:0; letter-spacing:.2px;
+  }
+  .brand .tag{
+    font-size: 11px; color: var(--text-dim); font-weight:500;
+  }
+
+  .link-signature{
+    width: 100%; max-width: 420px;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    padding: 10px 6px;
+  }
+  .node{
+    width: 34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; font-weight:700;
+    background: var(--bg-panel-2);
+    border: 1.5px solid var(--line);
+    flex-shrink:0;
+    transition: border-color .3s, box-shadow .3s;
+  }
+  .node.me{ color: var(--host); }
+  .node.peer{ color: var(--signal); }
+  .node.active{
+    border-color: currentColor;
+    box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 15%, transparent);
+  }
+  .link-track{
+    flex:1; height:2px; position:relative; background: var(--line); border-radius:2px; overflow:hidden;
+  }
+  .link-track .fill{
+    position:absolute; inset:0; width:0%;
+    background: linear-gradient(90deg, var(--host), var(--signal));
+    transition: width .5s ease;
+  }
+  .link-track .pulse{
+    position:absolute; top:50%; left:0; width:6px; height:6px; border-radius:50%;
+    background: var(--signal); transform: translate(-50%,-50%);
+    opacity:0; box-shadow: 0 0 8px 2px var(--signal);
+  }
+  .link-track.live .pulse{
+    opacity:1; animation: travel 1.6s linear infinite;
+  }
+  @keyframes travel{
+    0%{ left:0%; }
+    100%{ left:100%; }
+  }
+  .status-label{
+    font-size:11px; color: var(--text-dim); text-align:center; min-height:14px;
+  }
+
+  /* ---------- layout ---------- */
+  .wrap{ max-width: 480px; margin: 0 auto; padding: 18px 16px 40px; }
+
+  .videos{
+    display:grid; grid-template-columns: 1fr 1fr; gap:8px;
+    margin-bottom: 16px;
+  }
+  .video-box{
+    position:relative; aspect-ratio: 3/4; background:#000;
+    border-radius: var(--radius); overflow:hidden;
+    border: 1px solid var(--line);
+  }
+  .video-box video{
+    width:100%; height:100%; object-fit:cover; display:block;
+  }
+  .video-box .label{
+    position:absolute; bottom:8px; right:8px;
+    font-size:10px; padding:3px 8px; border-radius:20px;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+    color: var(--text-dim);
+  }
+  .video-box.empty::after{
+    content: attr(data-empty);
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:12px; color: var(--text-dim); text-align:center; padding: 0 10px;
+  }
+  .fs-btn{
+    position:absolute; top:8px; left:8px;
+    width:28px; height:28px; border-radius:8px;
+    background: rgba(0,0,0,.55); border:none; color:var(--text);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+
+  .controls{
+    display:flex; gap:8px; justify-content:center; margin-bottom: 22px;
+  }
+  .ctrl-btn{
+    width:46px; height:46px; border-radius:50%; border:1px solid var(--line);
+    background: var(--bg-panel-2); color:var(--text); font-size:18px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition: background .2s, opacity .2s;
+  }
+  .ctrl-btn.off{ background: var(--danger); border-color: var(--danger); color:#fff; }
+  .ctrl-btn.hangup{ background: var(--danger); border-color: var(--danger); color:#fff; }
+
+  /* ---------- setup panel ---------- */
+  .card{
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .card h2{
+    font-size: 14px; margin:0 0 4px; display:flex; align-items:center; gap:8px;
+  }
+  .step-num{
+    width:20px; height:20px; border-radius:6px; background: var(--bg-panel-2);
+    color: var(--signal); font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .card p.desc{
+    font-size: 12.5px; color: var(--text-dim); margin: 6px 0 12px; line-height:1.9;
+  }
+
+  .mode-select{
+    display:flex; gap:8px; margin-bottom: 16px;
+  }
+  .mode-btn{
+    flex:1; padding: 14px 10px; border-radius: var(--radius);
+    border:1px solid var(--line); background: var(--bg-panel);
+    color: var(--text); text-align:center; cursor:pointer;
+  }
+  .mode-btn strong{ display:block; font-size:14px; margin-bottom:3px; }
+  .mode-btn span{ font-size:11px; color: var(--text-dim); }
+  .mode-btn.selected{ border-color: var(--signal); background: color-mix(in srgb, var(--signal) 8%, var(--bg-panel)); }
+
+  textarea{
+    width:100%; min-height: 88px; resize: vertical;
+    background: #05070a; border:1px solid var(--line); border-radius:10px;
+    color: var(--signal); font-size:11px; padding:10px;
+    direction: ltr; text-align:left;
+  }
+  textarea::placeholder{ color: var(--text-dim); font-family:'Vazirmatn',sans-serif; direction:rtl; }
+
+  .row{ display:flex; gap:8px; margin-top:10px; }
+  .btn{
+    flex:1; padding: 12px 14px; border-radius:10px; border:none; cursor:pointer;
+    font-family:inherit; font-size:13px; font-weight:600;
+  }
+  .btn-primary{ background: var(--signal); color:#03110c; }
+  .btn-secondary{ background: var(--bg-panel-2); color: var(--text); border:1px solid var(--line); }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .hint{
+    font-size: 11px; color: var(--text-dim); margin-top:8px; line-height:1.8;
+    background: var(--bg-panel-2); padding:10px 12px; border-radius:10px;
+    border-right: 3px solid var(--host);
+  }
+
+  .hidden{ display:none !important; }
+
+  footer{
+    text-align:center; font-size:10.5px; color: var(--text-dim); padding: 10px 20px 30px; line-height:2;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <h1>تماس مستقیم</h1>
+    <span class="tag">بدون سرور واسط</span>
+  </div>
+  <div class="link-signature">
+    <div class="node me" id="nodeMe">من</div>
+    <div class="link-track" id="linkTrack"><div class="fill" id="linkFill"></div><div class="pulse"></div></div>
+    <div class="node peer" id="nodePeer">؟</div>
+  </div>
+  <div class="status-label" id="statusLabel">هنوز اتصالی برقرار نشده</div>
+</div>
+
+<div class="wrap">
+
+  <div class="videos">
+    <div class="video-box empty" id="localBox" data-empty="دوربین شما">
+      <video id="localVideo" autoplay muted playsinline></video>
+      <button class="fs-btn" onclick="goFullscreen('localVideo')">⛶</button>
+    </div>
+    <div class="video-box empty" id="remoteBox" data-empty="منتظر طرف مقابل">
+      <video id="remoteVideo" autoplay playsinline></video>
+      <button class="fs-btn" onclick="goFullscreen('remoteVideo')">⛶</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl-btn" id="micBtn" onclick="toggleMic()" title="میکروفون">🎤</button>
+    <button class="ctrl-btn" id="camBtn" onclick="toggleCam()" title="دوربین">📷</button>
+    <button class="ctrl-btn hangup" onclick="hangUp()" title="پایان تماس">✕</button>
+  </div>
+
+  <!-- Mode select -->
+  <div class="mode-select" id="modeSelect">
+    <div class="mode-btn" id="btnHost" onclick="selectMode('host')">
+      <strong>هاست کنم</strong>
+      <span>من لینک می‌سازم</span>
+    </div>
+    <div class="mode-btn" id="btnJoin" onclick="selectMode('join')">
+      <strong>وصل شوم</strong>
+      <span>یه کد از طرف مقابل دارم</span>
+    </div>
+  </div>
+
+  <!-- HOST FLOW -->
+  <div id="hostFlow" class="hidden">
+    <div class="card">
+      <h2><span class="step-num">1</span> کد اتصال بساز</h2>
+      <p class="desc">این کد را برای طرف مقابل بفرست (از طریق تلگرام، واتساپ یا هر پیام‌رسانی). این فقط اطلاعات اتصال است، تصویر تو از سرور رد نمی‌شود.</p>
+      <button class="btn btn-primary" id="genOfferBtn" onclick="startHost()">ساخت کد و روشن کردن دوربین</button>
+      <textarea id="offerOut" class="hidden mono" readonly placeholder="کد اینجا ظاهر می‌شود..."></textarea>
+      <div class="row hidden" id="offerCopyRow">
+        <button class="btn btn-secondary" onclick="copyText('offerOut')">📋 کپی کد</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-num">2</span> کد پاسخ طرف مقابل را وارد کن</h2>
+      <p class="desc">طرف مقابل بعد از وارد کردن کد تو، یک کد پاسخ به تو می‌دهد. آن را اینجا بچسبان.</p>
+      <textarea id="answerIn" class="mono" placeholder="کد پاسخ طرف مقابل را اینجا پیست کن..."></textarea>
+      <div class="row">
+        <button class="btn btn-primary" onclick="submitAnswer()">اتصال نهایی</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JOIN FLOW -->
+  <div id="joinFlow" class="hidden">
+    <div class="card">
+      <h2><span class="step-num">1</span> کد میزبان را وارد کن</h2>
+      <p class="desc">کدی که از میزبان دریافت کردی را اینجا پیست کن.</p>
+      <textarea id="offerIn" class="mono" placeholder="کد میزبان را اینجا پیست کن..."></textarea>
+      <div class="row">
+        <button class="btn btn-primary" onclick="startJoin()">روشن کردن دوربین و ساخت پاسخ</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="answerCard">
+      <h2><span class="step-num">2</span> کد پاسخ را برای میزبان بفرست</h2>
+      <p class="desc">این کد را کپی کن و برای میزبان بفرست تا اتصال کامل شود.</p>
+      <textarea id="answerOut" class="mono" readonly></textarea>
+      <div class="row">
+        <button class="btn btn-secondary" onclick="copyText('answerOut')">📋 کپی کد پاسخ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint" id="errorBox" style="display:none; border-right-color: var(--danger);"></div>
+
+  <div class="hint">
+    نکته: چون سرور واسطی وجود ندارد، تبادل «کد» بین شما دستی است (یک بار رفت، یک بار برگشت). بعد از آن تصویر و صدا مستقیم بین دو دستگاه رد و بدل می‌شود. <strong>این صفحه را حتماً در یک تب کامل مرورگر باز کن</strong> (فایل را دانلود کن و با مرورگر باز کن) — داخل پیش‌نمایش برنامه، دسترسی دوربین معمولاً مسدود است.
+  </div>
+
+</div>
+
+<footer>اتصال با WebRTC — تبادل داده مستقیم بین دو مرورگر</footer>
+
+<script>
+let pc = null;
+let localStream = null;
+let mode = null;
+let micOn = true, camOn = true;
+
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const statusLabel = document.getElementById('statusLabel');
+const nodeMe = document.getElementById('nodeMe');
+const nodePeer = document.getElementById('nodePeer');
+const linkFill = document.getElementById('linkFill');
+const linkTrack = document.getElementById('linkTrack');
+
+function setStatus(text){ statusLabel.textContent = text; }
+
+function showError(text){
+  const box = document.getElementById('errorBox');
+  box.style.display = 'block';
+  box.textContent = text;
+}
+function clearError(){
+  const box = document.getElementById('errorBox');
+  box.style.display = 'none';
+  box.textContent = '';
+}
+
+function updateLink(pct, live){
+  linkFill.style.width = pct + '%';
+  linkTrack.classList.toggle('live', !!live);
+}
+
+function selectMode(m){
+  mode = m;
+  document.getElementById('btnHost').classList.toggle('selected', m==='host');
+  document.getElementById('btnJoin').classList.toggle('selected', m==='join');
+  document.getElementById('hostFlow').classList.toggle('hidden', m!=='host');
+  document.getElementById('joinFlow').classList.toggle('hidden', m!=='join');
+  nodeMe.textContent = m === 'host' ? 'هاست' : 'من';
+  nodeMe.classList.add('active');
+}
+
+function createPeerConnection(){
+  pc = new RTCPeerConnection({
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  });
+  pc.ontrack = (e) => {
+    remoteVideo.srcObject = e.streams[0];
+    document.getElementById('remoteBox').classList.remove('empty');
+    nodePeer.textContent = '●';
+    nodePeer.classList.add('active');
+    updateLink(100, true);
+    setStatus('متصل شد — تماس برقرار است');
+  };
+  pc.onconnectionstatechange = () => {
+    if(pc.connectionState === 'disconnected' || pc.connectionState === 'failed'){
+      setStatus('اتصال قطع شد');
+      updateLink(0,false);
+      nodePeer.classList.remove('active');
+    }
+  };
+  return pc;
+}
+
+function waitIceGatheringComplete(pc){
+  return new Promise((resolve) => {
+    if(pc.iceGatheringState === 'complete'){ resolve(); return; }
+    function check(){
+      if(pc.iceGatheringState === 'complete'){
+        pc.removeEventListener('icegatheringstatechange', check);
+        resolve();
+      }
+    }
+    pc.addEventListener('icegatheringstatechange', check);
+    setTimeout(resolve, 4000); // fallback: don't wait forever
+  });
+}
+
+async function getLocalMedia(){
+  clearError();
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showError('این محیط اجازهٔ دسترسی به دوربین را نمی‌دهد (خیلی وقت‌ها به‌خاطر پیش‌نمایش/iframe است). فایل HTML را دانلود کن و مستقیماً در مرورگر (کروم/سافاری) باز کن.');
+      return false;
+    }
+    localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+    localVideo.srcObject = localStream;
+    document.getElementById('localBox').classList.remove('empty');
+    return true;
+  }catch(err){
+    let extra = '';
+    if(err.name === 'NotAllowedError') extra = ' اجازهٔ دوربین رد شده — از تنظیمات مرورگر اجازه بده، یا اگر داخل پیش‌نمایشی، فایل را در یک تب کامل باز کن.';
+    else if(err.name === 'NotFoundError') extra = ' دوربین یا میکروفونی پیدا نشد.';
+    showError('دسترسی به دوربین/میکروفون ممکن نشد (' + err.name + ').' + extra);
+    return false;
+  }
+}
+
+/* ---------------- HOST FLOW ---------------- */
+async function startHost(){
+  document.getElementById('genOfferBtn').disabled = true;
+  updateLink(15, false);
+  const ok = await getLocalMedia();
+  if(!ok){ document.getElementById('genOfferBtn').disabled = false; return; }
+  createPeerConnection();
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  setStatus('در حال ساخت کد اتصال...');
+  updateLink(30, false);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await waitIceGatheringComplete(pc);
+
+  const code = btoa(JSON.stringify(pc.localDescription));
+  const out = document.getElementById('offerOut');
+  out.classList.remove('hidden');
+  out.value = code;
+  document.getElementById('offerCopyRow').classList.remove('hidden');
+  updateLink(45, false);
+  setStatus('کد را برای طرف مقابل بفرست، منتظر کد پاسخ باش');
+}
+
+async function submitAnswer(){
+  clearError();
+  const val = document.getElementById('answerIn').value.trim();
+  if(!val){ showError('کد پاسخ را وارد کن.'); return; }
+  if(!pc){ showError('اول باید مرحلهٔ ۱ (ساخت کد) را انجام بدهی.'); return; }
+  try{
+    const desc = JSON.parse(atob(val));
+    await pc.setRemoteDescription(desc);
+    updateLink(75, false);
+    setStatus('در حال برقراری اتصال مستقیم...');
+  }catch(err){
+    showError('کد پاسخ نامعتبر است. مطمئن شو کل متن را بدون کم‌وکاست کپی کرده‌ای.');
+  }
+}
+
+/* ---------------- JOIN FLOW ---------------- */
+async function startJoin(){
+  clearError();
+  const val = document.getElementById('offerIn').value.trim();
+  if(!val){ showError('کد میزبان را وارد کن.'); return; }
+  let desc;
+  try{
+    desc = JSON.parse(atob(val));
+  }catch(err){
+    showError('کد میزبان نامعتبر است. مطمئن شو کل متن را بدون کم‌وکاست کپی کرده‌ای.');
+    return;
+  }
+
+  updateLink(15, false);
+  const ok = await getLocalMedia();
+  if(!ok) return;
+  createPeerConnection();
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  await pc.setRemoteDescription(desc);
+  updateLink(35, false);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await waitIceGatheringComplete(pc);
+
+  const code = btoa(JSON.stringify(pc.localDescription));
+  document.getElementById('answerCard').classList.remove('hidden');
+  document.getElementById('answerOut').value = code;
+  updateLink(55, false);
+  setStatus('کد پاسخ را برای میزبان بفرست');
+}
+
+/* ---------------- shared controls ---------------- */
+function copyText(id){
+  const el = document.getElementById(id);
+  el.select();
+  el.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(el.value).then(()=>{
+    setStatus('کد کپی شد ✓');
+  }).catch(()=>{
+    document.execCommand('copy');
+  });
+}
+
+function toggleMic(){
+  if(!localStream) return;
+  micOn = !micOn;
+  localStream.getAudioTracks().forEach(t => t.enabled = micOn);
+  document.getElementById('micBtn').classList.toggle('off', !micOn);
+  document.getElementById('micBtn').textContent = micOn ? '🎤' : '🔇';
+}
+function toggleCam(){
+  if(!localStream) return;
+  camOn = !camOn;
+  localStream.getVideoTracks().forEach(t => t.enabled = camOn);
+  document.getElementById('camBtn').classList.toggle('off', !camOn);
+  document.getElementById('camBtn').textContent = camOn ? '📷' : '🚫';
+}
+function hangUp(){
+  if(pc){ pc.close(); pc = null; }
+  if(localStream){ localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
+  localVideo.srcObject = null;
+  remoteVideo.srcObject = null;
+  document.getElementById('localBox').classList.add('empty');
+  document.getElementById('remoteBox').classList.add('empty');
+  nodePeer.classList.remove('active');
+  nodeMe.classList.remove('active');
+  updateLink(0, false);
+  setStatus('تماس پایان یافت');
+}
+function goFullscreen(id){
+  const el = document.getElementById(id);
+  if(el.requestFullscreen) el.requestFullscreen();
+  else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  else if(el.webkitEnterFullscreen) el.webkitEnterFullscreen(); // iOS Safari video
+}
+</script>
+</body>
+</html>
